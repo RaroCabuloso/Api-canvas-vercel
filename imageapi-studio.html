@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ImageAPI Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #080808;
+  --surface: #111;
+  --border: #1e1e1e;
+  --accent: #c8f135;
+  --accent2: #ff3c3c;
+  --text: #f0f0f0;
+  --muted: #555;
+  --panel: #0d0d0d;
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body { height:100%; overflow:hidden; }
+body { background:var(--bg); color:var(--text); font-family:'Syne',sans-serif; }
+
+/* ===== PAGES ===== */
+.page { display:none; width:100%; height:100%; }
+.page.active { display:flex; }
+
+/* ===== LOGIN ===== */
+#page-login {
+  align-items:center; justify-content:center;
+  flex-direction:column;
+  background: radial-gradient(ellipse 80% 60% at 50% -10%, #c8f13522, transparent),
+              radial-gradient(ellipse 40% 40% at 90% 90%, #ff3c3c11, transparent),
+              #080808;
+  overflow:auto;
+}
+.login-grid {
+  position:fixed; inset:0; pointer-events:none;
+  background-image: linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+  background-size:40px 40px;
+}
+.login-box {
+  position:relative; z-index:1;
+  width:min(420px, calc(100vw - 32px));
+  padding:clamp(28px, 5vw, 48px);
+  background:var(--surface);
+  border:1px solid var(--border);
+}
+.login-logo { font-family:'Space Mono',monospace; font-size:10px; color:var(--accent); letter-spacing:4px; margin-bottom:8px; }
+.login-title { font-size:clamp(28px,8vw,38px); font-weight:800; line-height:1; margin-bottom:36px; }
+.login-title span { color:var(--accent); }
+.field-group { margin-bottom:18px; }
+.field-label { font-family:'Space Mono',monospace; font-size:10px; color:var(--muted); letter-spacing:2px; text-transform:uppercase; margin-bottom:7px; display:block; }
+.field-input { width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); font-family:'Space Mono',monospace; font-size:14px; padding:13px 14px; outline:none; transition:border-color .2s; -webkit-appearance:none; border-radius:0; }
+.field-input:focus { border-color:var(--accent); }
+.btn-primary { width:100%; background:var(--accent); color:#000; border:none; font-family:'Syne',sans-serif; font-size:14px; font-weight:800; letter-spacing:2px; text-transform:uppercase; padding:15px; cursor:pointer; margin-top:6px; transition:opacity .2s; border-radius:0; }
+.btn-primary:active { opacity:.85; }
+.login-hint { font-family:'Space Mono',monospace; font-size:10px; color:var(--muted); margin-top:16px; text-align:center; }
+
+/* ===== EDITOR ===== */
+#page-editor { flex-direction:column; height:100%; overflow:hidden; position:relative; }
+
+/* Header */
+.editor-header {
+  height:48px; background:var(--surface); border-bottom:1px solid var(--border);
+  display:flex; align-items:center; padding:0 12px; gap:10px; flex-shrink:0; z-index:100;
+}
+.editor-logo { font-family:'Space Mono',monospace; font-size:10px; color:var(--accent); letter-spacing:3px; white-space:nowrap; }
+.header-route {
+  flex:1; font-family:'Space Mono',monospace; font-size:9px; color:var(--muted);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.header-route span { color:var(--accent); }
+.btn-hdr {
+  font-family:'Space Mono',monospace; font-size:9px; letter-spacing:1px; text-transform:uppercase;
+  padding:7px 10px; border:1px solid var(--border); background:transparent; color:var(--text);
+  cursor:pointer; white-space:nowrap; flex-shrink:0; transition:all .2s; border-radius:0;
+}
+.btn-hdr.accent { border-color:var(--accent); color:var(--accent); }
+.btn-hdr.accent:active { background:var(--accent); color:#000; }
+.btn-hdr.danger:active { border-color:var(--accent2); color:var(--accent2); }
+
+/* Main body */
+.editor-body { flex:1; display:flex; overflow:hidden; position:relative; }
+
+/* Canvas area */
+.canvas-area {
+  flex:1; overflow:auto; background:#050505;
+  background-image: linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px);
+  background-size:20px 20px;
+  display:flex; align-items:center; justify-content:center;
+  position:relative;
+}
+.canvas-wrapper {
+  position:relative; flex-shrink:0;
+  box-shadow:0 0 0 1px var(--border), 0 0 60px #00000090;
+}
+#main-canvas { display:block; }
+#canvas-overlay { position:absolute; inset:0; touch-action:none; }
+
+/* ===== PANELS ===== */
+/* Drawer (mobile) / sidebar (desktop) */
+.panel {
+  position:absolute; top:0; bottom:0; z-index:50;
+  background:var(--panel); display:flex; flex-direction:column; overflow:hidden;
+  transition:transform .28s cubic-bezier(.4,0,.2,1);
+  width:min(280px, 85vw);
+}
+.panel-left { left:0; border-right:1px solid var(--border); transform:translateX(-100%); }
+.panel-right { right:0; border-left:1px solid var(--border); transform:translateX(100%); }
+.panel.open { transform:translateX(0); }
+
+/* Desktop: side panels always visible */
+@media(min-width:900px) {
+  .panel { position:relative; transform:none !important; flex-shrink:0; }
+  .panel-left { width:260px; }
+  .panel-right { width:280px; }
+  .panel-toggle-btn { display:none !important; }
+  .panel-backdrop { display:none !important; }
+  .canvas-area { padding:32px; }
+}
+
+.panel-backdrop {
+  display:none; position:absolute; inset:0; z-index:49;
+  background:rgba(0,0,0,.6); backdrop-filter:blur(2px);
+}
+.panel-backdrop.show { display:block; }
+
+/* Panel toggle buttons (mobile) */
+.panel-toggle-btn {
+  position:absolute; z-index:60;
+  width:38px; height:38px;
+  background:var(--surface); border:1px solid var(--border);
+  color:var(--accent); font-size:16px;
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer; top:8px; border-radius:0;
+}
+#btn-open-left { left:8px; }
+#btn-open-right { right:8px; }
+
+/* Panel close button */
+.panel-close-btn {
+  position:absolute; top:8px; right:8px;
+  width:30px; height:30px; z-index:10;
+  background:none; border:1px solid var(--border);
+  color:var(--muted); font-size:14px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition:color .2s;
+}
+.panel-close-btn:active { color:var(--accent2); }
+
+/* Panel internals */
+.panel-section { padding:14px; border-bottom:1px solid var(--border); }
+.panel-section-title { font-family:'Space Mono',monospace; font-size:9px; letter-spacing:3px; text-transform:uppercase; color:var(--muted); margin-bottom:10px; }
+.input-row { display:flex; gap:7px; align-items:center; margin-bottom:7px; }
+.mini-label { font-family:'Space Mono',monospace; font-size:9px; color:var(--muted); white-space:nowrap; }
+.mini-input { flex:1; background:var(--bg); border:1px solid var(--border); color:var(--text); font-family:'Space Mono',monospace; font-size:11px; padding:6px 8px; outline:none; transition:border-color .2s; min-width:0; -webkit-appearance:none; border-radius:0; }
+.mini-input:focus { border-color:var(--accent); }
+
+.add-buttons { display:flex; flex-direction:column; gap:7px; }
+.btn-add { display:flex; align-items:center; gap:10px; padding:11px 13px; border:1px dashed var(--border); background:transparent; color:var(--text); font-family:'Syne',sans-serif; font-size:13px; font-weight:600; cursor:pointer; transition:all .2s; width:100%; border-radius:0; }
+.btn-add:active { border-color:var(--accent); color:var(--accent); }
+.btn-add .bico { font-size:16px; }
+
+.comp-list { flex:1; overflow-y:auto; padding:10px; }
+.comp-list::-webkit-scrollbar { width:3px; }
+.comp-list::-webkit-scrollbar-thumb { background:var(--border); }
+
+.comp-item { padding:9px 11px; border:1px solid var(--border); margin-bottom:5px; cursor:pointer; display:flex; align-items:center; gap:9px; transition:all .15s; }
+.comp-item.selected { border-color:var(--accent); background:#c8f13508; }
+.comp-item-icon { font-size:13px; flex-shrink:0; }
+.comp-item-info { flex:1; min-width:0; }
+.comp-item-name { font-size:12px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.comp-item-sub { font-family:'Space Mono',monospace; font-size:9px; color:var(--muted); margin-top:2px; }
+.comp-del { background:none; border:none; color:var(--muted); cursor:pointer; font-size:13px; padding:3px; transition:color .2s; }
+.comp-del:active { color:var(--accent2); }
+
+/* Props panel right */
+.panel-right { padding:14px; overflow-y:auto; }
+.panel-right::-webkit-scrollbar { width:3px; }
+.panel-right::-webkit-scrollbar-thumb { background:var(--border); }
+.props-title { font-family:'Space Mono',monospace; font-size:9px; letter-spacing:3px; text-transform:uppercase; color:var(--muted); margin-bottom:14px; margin-top:28px; }
+.prop-group { margin-bottom:12px; }
+.prop-label { font-family:'Space Mono',monospace; font-size:9px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; margin-bottom:5px; display:block; }
+.prop-input { width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); font-family:'Space Mono',monospace; font-size:11px; padding:8px 9px; outline:none; transition:border-color .2s; -webkit-appearance:none; border-radius:0; }
+.prop-input:focus { border-color:var(--accent); }
+textarea.prop-input { resize:vertical; min-height:56px; }
+.prop-row { display:flex; gap:6px; }
+.prop-row .prop-group { flex:1; }
+.prop-divider { height:1px; background:var(--border); margin:14px 0; }
+
+.gradient-toggle { display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:8px; user-select:none; }
+.toggle-box { width:30px; height:17px; background:var(--border); border-radius:9px; position:relative; transition:background .2s; flex-shrink:0; }
+.toggle-box.on { background:var(--accent); }
+.toggle-dot { width:11px; height:11px; background:#fff; border-radius:50%; position:absolute; top:3px; left:3px; transition:left .2s; }
+.toggle-box.on .toggle-dot { left:16px; }
+.toggle-label { font-family:'Space Mono',monospace; font-size:9px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; }
+
+.no-selection { display:flex; flex-direction:column; align-items:center; justify-content:center; height:180px; gap:8px; color:var(--muted); }
+.no-selection-icon { font-size:28px; opacity:.35; }
+.no-selection-text { font-family:'Space Mono',monospace; font-size:10px; text-align:center; line-height:1.6; letter-spacing:1px; }
+
+/* Canvas overlay elements */
+.cv-el {
+  position:absolute; cursor:move; user-select:none;
+  touch-action:none; -webkit-user-select:none;
+}
+.cv-el.selected::after {
+  content:''; position:absolute; inset:-2px;
+  border:2px solid var(--accent); pointer-events:none;
+}
+/* Resize handle — big enough for fingers */
+.resize-handle {
+  position:absolute; right:-12px; bottom:-12px;
+  width:26px; height:26px; background:var(--accent);
+  cursor:se-resize; touch-action:none;
+  border-radius:50%;
+  box-shadow:0 0 0 2px #000;
+  z-index:10;
+}
+
+/* ===== GENERATE PAGE ===== */
+#page-generate {
+  align-items:center; justify-content:center; flex-direction:column;
+  background:#000; overflow:auto;
+}
+.gen-wrap { display:flex; flex-direction:column; align-items:center; gap:16px; padding:20px; }
+#generate-canvas { display:block; max-width:100%; height:auto; }
+.gen-loading { font-family:'Space Mono',monospace; font-size:12px; color:var(--accent); letter-spacing:4px; animation:pulse 1s ease-in-out infinite alternate; }
+.gen-actions { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+.gen-btn { font-family:'Space Mono',monospace; font-size:10px; letter-spacing:2px; text-transform:uppercase; padding:10px 20px; border:1px solid var(--border); background:transparent; color:var(--text); cursor:pointer; text-decoration:none; display:inline-block; border-radius:0; }
+.gen-btn.dl { border-color:var(--accent); color:var(--accent); }
+.gen-btn:active { opacity:.7; }
+@keyframes pulse { from{opacity:.4} to{opacity:1} }
+
+/* Toast */
+.toast { position:fixed; bottom:20px; right:16px; background:var(--accent); color:#000; font-family:'Space Mono',monospace; font-size:11px; letter-spacing:1px; padding:10px 18px; z-index:9999; opacity:0; transform:translateY(10px); transition:all .3s; pointer-events:none; }
+.toast.show { opacity:1; transform:translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- ===== LOGIN ===== -->
+<div id="page-login" class="page active">
+  <div class="login-grid"></div>
+  <div class="login-box">
+    <div class="login-logo">// ImageAPI Studio</div>
+    <h1 class="login-title">Faça seu<br><span>Login</span></h1>
+    <div class="field-group">
+      <label class="field-label">Usuário</label>
+      <input type="text" class="field-input" id="login-user" placeholder="admin" autocomplete="off" autocorrect="off" autocapitalize="none">
+    </div>
+    <div class="field-group">
+      <label class="field-label">Senha</label>
+      <input type="password" class="field-input" id="login-pass" placeholder="••••••••">
+    </div>
+    <button class="btn-primary" onclick="doLogin()">ENTRAR →</button>
+    <p class="login-hint">demo: admin / admin</p>
+  </div>
+</div>
+
+<!-- ===== EDITOR ===== -->
+<div id="page-editor" class="page">
+  <header class="editor-header">
+    <span class="editor-logo">IMG//API</span>
+    <div class="header-route" id="route-display"><span>/gen</span>?...</div>
+    <button class="btn-hdr accent" onclick="copyRoute()">COPIAR</button>
+    <button class="btn-hdr accent" onclick="openGenerate()">▶ GERAR</button>
+    <button class="btn-hdr danger" onclick="doLogout()">SAIR</button>
+  </header>
+
+  <div class="editor-body">
+    <!-- Left panel toggle (mobile) -->
+    <button class="panel-toggle-btn" id="btn-open-left" onclick="openPanel('left')">☰</button>
+    <!-- Right panel toggle (mobile) -->
+    <button class="panel-toggle-btn" id="btn-open-right" onclick="openPanel('right')">⚙</button>
+
+    <!-- Backdrop -->
+    <div class="panel-backdrop" id="panel-backdrop" onclick="closePanels()"></div>
+
+    <!-- LEFT PANEL -->
+    <div class="panel panel-left" id="panel-left">
+      <button class="panel-close-btn" onclick="closePanel('left')">✕</button>
+
+      <div class="panel-section">
+        <div class="panel-section-title">// Canvas</div>
+        <div class="input-row">
+          <span class="mini-label">W</span>
+          <input type="number" class="mini-input" id="cv-w" value="800" min="1" max="4000" onchange="updateCanvas()">
+          <span class="mini-label">H</span>
+          <input type="number" class="mini-input" id="cv-h" value="800" min="1" max="4000" onchange="updateCanvas()">
+        </div>
+        <div class="input-row">
+          <span class="mini-label">BG</span>
+          <input type="text" class="mini-input" id="cv-bg" value="000000" placeholder="hex ou transparent" onchange="updateCanvas()">
+          <input type="color" style="width:30px;height:28px;border:none;background:none;cursor:pointer;padding:0;flex-shrink:0" oninput="document.getElementById('cv-bg').value=this.value.replace('#','');updateCanvas()">
+        </div>
+        <div class="input-row">
+          <span class="mini-label">BGIMG</span>
+          <input type="text" class="mini-input" id="cv-bgimg" placeholder="URL da imagem de fundo" onchange="updateCanvas()">
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-section-title">// Adicionar</div>
+        <div class="add-buttons">
+          <button class="btn-add" onclick="addText()"><span class="bico">T</span> Texto</button>
+          <button class="btn-add" onclick="addImage()"><span class="bico">🖼</span> Imagem</button>
+        </div>
+      </div>
+
+      <div class="panel-section" style="padding:10px 14px 6px">
+        <div class="panel-section-title">// Componentes</div>
+      </div>
+      <div class="comp-list" id="comp-list">
+        <div style="font-family:'Space Mono',monospace;font-size:10px;color:#444;text-align:center;padding:16px">Nenhum componente</div>
+      </div>
+    </div>
+
+    <!-- CANVAS -->
+    <div class="canvas-area" id="canvas-area">
+      <div class="canvas-wrapper" id="canvas-wrapper">
+        <canvas id="main-canvas" width="800" height="800"></canvas>
+        <div id="canvas-overlay"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="panel panel-right" id="panel-right">
+      <button class="panel-close-btn" onclick="closePanel('right')">✕</button>
+      <div id="props-panel">
+        <div class="no-selection">
+          <span class="no-selection-icon">◈</span>
+          <span class="no-selection-text">Selecione um<br>componente<br>para editar</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== GENERATE ===== -->
+<div id="page-generate" class="page">
+  <div class="gen-wrap">
+    <div class="gen-loading" id="gen-loading">RENDERIZANDO...</div>
+    <canvas id="generate-canvas" style="display:none"></canvas>
+    <div class="gen-actions" id="gen-actions" style="display:none">
+      <a class="gen-btn dl" id="dl-btn" download="imagem.png">⬇ BAIXAR PNG</a>
+      <button class="gen-btn" onclick="backToEditor()">← EDITOR</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ===================== STATE =====================
+const S = {
+  comps: [], canvas: {w:800,h:800,bg:'000000',bgimg:''}, sel:null, idc:0, scale:1
+};
+
+// ===================== LOGIN =====================
+function doLogin(){
+  const u=document.getElementById('login-user').value;
+  const p=document.getElementById('login-pass').value;
+  if(u==='admin'&&p==='admin'){
+    sessionStorage.setItem('logged','1');
+    showPage('page-editor'); initEditor();
+  } else showToast('Credenciais inválidas!',true);
+}
+function doLogout(){
+  sessionStorage.removeItem('logged');
+  S.comps=[]; S.sel=null;
+  showPage('page-login');
+}
+document.getElementById('login-pass').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
+
+// ===================== PAGES =====================
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ===================== PANELS (mobile) =====================
+function openPanel(side){
+  document.getElementById('panel-'+side).classList.add('open');
+  document.getElementById('panel-backdrop').classList.add('show');
+}
+function closePanel(side){
+  document.getElementById('panel-'+side).classList.remove('open');
+  const anyOpen=[...document.querySelectorAll('.panel.open')].length>0;
+  if(!anyOpen) document.getElementById('panel-backdrop').classList.remove('show');
+}
+function closePanels(){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('open'));
+  document.getElementById('panel-backdrop').classList.remove('show');
+}
+
+// ===================== EDITOR =====================
+let editorReady=false;
+function initEditor(){
+  if(editorReady){ renderCanvas(); return; }
+  editorReady=true;
+  window.addEventListener('resize', ()=>{ updateCanvasSize(); renderCanvas(); renderOverlay(); });
+  updateCanvas();
+  renderCompList();
+  updateRoute();
+}
+
+function getScale(){
+  const area=document.getElementById('canvas-area');
+  if(!area) return 1;
+  const pw=area.clientWidth-80, ph=area.clientHeight-80;
+  return Math.min(1, pw/S.canvas.w, ph/S.canvas.h, 2);
+}
+
+function updateCanvasSize(){
+  const sc=getScale(); S.scale=sc;
+  const cv=document.getElementById('main-canvas');
+  cv.style.width=(S.canvas.w*sc)+'px';
+  cv.style.height=(S.canvas.h*sc)+'px';
+  const ov=document.getElementById('canvas-overlay');
+  ov.style.width=(S.canvas.w*sc)+'px';
+  ov.style.height=(S.canvas.h*sc)+'px';
+}
+
+function updateCanvas(){
+  S.canvas.w=parseInt(document.getElementById('cv-w').value)||800;
+  S.canvas.h=parseInt(document.getElementById('cv-h').value)||800;
+  S.canvas.bg=document.getElementById('cv-bg').value||'000000';
+  S.canvas.bgimg=document.getElementById('cv-bgimg').value||'';
+  const cv=document.getElementById('main-canvas');
+  cv.width=S.canvas.w; cv.height=S.canvas.h;
+  updateCanvasSize();
+  renderCanvas();
+  updateRoute();
+}
+
+function renderCanvas(cb){
+  const cv=document.getElementById('main-canvas');
+  const ctx=cv.getContext('2d');
+  const W=S.canvas.w, H=S.canvas.h;
+  ctx.clearRect(0,0,W,H);
+  const bg=S.canvas.bg.trim();
+  if(bg&&bg!=='transparent'){ ctx.fillStyle='#'+bg.replace('#',''); ctx.fillRect(0,0,W,H); }
+  const doComps=()=>{
+    renderAllComps(ctx,W,H,()=>{
+      renderOverlay();
+      if(cb) cb(cv);
+    });
+  };
+  if(S.canvas.bgimg){
+    const img=new Image(); img.crossOrigin='anonymous';
+    img.onload=()=>{ ctx.drawImage(img,0,0,W,H); doComps(); };
+    img.onerror=doComps; img.src=S.canvas.bgimg;
+  } else doComps();
+}
+
+function renderAllComps(ctx,W,H,done){
+  const imgComps=S.comps.filter(c=>c.type==='image');
+  const loads=imgComps.map(c=>new Promise(res=>{
+    if(!c.url){res();return;}
+    if(c._img&&c._imgSrc===c.url){res();return;}
+    const i=new Image(); i.crossOrigin='anonymous';
+    i.onload=()=>{c._img=i;c._imgSrc=c.url;res();}; i.onerror=()=>{c._img=null;res();};
+    c._imgSrc=c.url; i.src=c.url;
+  }));
+  Promise.all(loads).then(()=>{
+    S.comps.forEach(c=>{ if(c.type==='image') drawImg(ctx,c); else drawTxt(ctx,c); });
+    if(done) done();
+  });
+}
+
+function drawImg(ctx,c){
+  if(c._img){ ctx.drawImage(c._img,c.x,c.y,c.w,c.h); }
+  else if(c.url){
+    ctx.fillStyle='#ff3c3c22'; ctx.fillRect(c.x,c.y,c.w,c.h);
+    ctx.strokeStyle='#ff3c3c44'; ctx.strokeRect(c.x,c.y,c.w,c.h);
+    ctx.fillStyle='#ff3c3c'; ctx.font='12px monospace';
+    ctx.fillText('IMG…',c.x+6,c.y+16);
+  }
+}
+
+function drawTxt(ctx,c){
+  ctx.save();
+  if(c.shadowOpacity>0){
+    ctx.shadowColor=`rgba(0,0,0,${c.shadowOpacity})`;
+    ctx.shadowBlur=c.shadowBlur; ctx.shadowOffsetX=c.shadowDist; ctx.shadowOffsetY=c.shadowDist;
+  }
+  const bold=c.bold?'bold ':'';
+  ctx.font=`${bold}${c.fontSize}px ${c.fontFamily||'sans-serif'}`;
+  ctx.textBaseline='top';
+  if(c.useGradient){
+    const g=ctx.createLinearGradient(c.x,c.y,c.x+Math.max(c.w||400,400),c.y);
+    g.addColorStop(0,'#'+(c.color1||'ffffff').replace('#',''));
+    g.addColorStop(1,'#'+(c.color2||'c8f135').replace('#',''));
+    ctx.fillStyle=g;
+  } else { ctx.fillStyle='#'+(c.color||'ffffff').replace('#',''); }
+  const lines=(c.content||'').split('\n');
+  const lh=c.fontSize*1.3;
+  lines.forEach((l,i)=>ctx.fillText(l,c.x,c.y+i*lh));
+  ctx.restore();
+}
+
+// ===================== OVERLAY (draggable) =====================
+function renderOverlay(){
+  const ov=document.getElementById('canvas-overlay');
+  ov.innerHTML='';
+  const sc=S.scale;
+  S.comps.forEach(c=>{
+    const el=document.createElement('div');
+    el.className='cv-el'+(S.sel===c.id?' selected':'');
+    const W2=c.type==='text'?Math.max(c.w||300,200):c.w;
+    const H2=c.type==='text'?Math.max(c.fontSize*1.3*((c.content||'').split('\n').length),c.fontSize*1.5):c.h;
+    el.style.left=c.x*sc+'px';
+    el.style.top=c.y*sc+'px';
+    el.style.width=W2*sc+'px';
+    el.style.height=H2*sc+'px';
+
+    attachDrag(el, c);
+    el.addEventListener('pointerdown', e=>{ if(!e.target.classList.contains('resize-handle')) selectComp(c.id); });
+
+    const rh=document.createElement('div');
+    rh.className='resize-handle';
+    attachResize(rh, c, el);
+    el.appendChild(rh);
+
+    ov.appendChild(el);
+  });
+}
+
+function attachDrag(el, c){
+  let pid=null, startX, startY, origX, origY;
+
+  el.addEventListener('pointerdown', e=>{
+    if(e.target.classList.contains('resize-handle')) return;
+    e.preventDefault(); e.stopPropagation();
+    pid=e.pointerId;
+    try{ el.setPointerCapture(pid); }catch(_){}
+    startX=e.clientX; startY=e.clientY;
+    origX=c.x; origY=c.y;
+  });
+
+  el.addEventListener('pointermove', e=>{
+    if(e.pointerId!==pid) return;
+    e.preventDefault();
+    const sc=S.scale;
+    c.x=Math.round(origX+(e.clientX-startX)/sc);
+    c.y=Math.round(origY+(e.clientY-startY)/sc);
+    // Move THIS element directly — no DOM rebuild
+    el.style.left=c.x*sc+'px';
+    el.style.top=c.y*sc+'px';
+    // Redraw pixels only
+    redrawCanvas();
+    updateRoute();
+  });
+
+  el.addEventListener('pointerup', e=>{
+    if(e.pointerId!==pid) return;
+    pid=null;
+    renderOverlay(); // rebuild once on release
+  });
+
+  el.addEventListener('pointercancel', ()=>{ pid=null; });
+}
+
+function attachResize(rh, c, el){
+  let pid=null, startX, startY, origW, origH;
+
+  rh.addEventListener('pointerdown', e=>{
+    e.preventDefault(); e.stopPropagation();
+    pid=e.pointerId;
+    try{ rh.setPointerCapture(pid); }catch(_){}
+    startX=e.clientX; startY=e.clientY;
+    origW=c.w||200; origH=c.h||200;
+    selectComp(c.id);
+  });
+
+  rh.addEventListener('pointermove', e=>{
+    if(e.pointerId!==pid) return;
+    e.preventDefault();
+    const sc=S.scale;
+    c.w=Math.max(20,Math.round(origW+(e.clientX-startX)/sc));
+    c.h=Math.max(20,Math.round(origH+(e.clientY-startY)/sc));
+    // Resize THIS element directly — no DOM rebuild
+    const W2=c.type==='text'?Math.max(c.w,200):c.w;
+    const H2=c.type==='text'?Math.max(c.fontSize*1.3*((c.content||'').split('\n').length),c.fontSize*1.5):c.h;
+    el.style.width=W2*sc+'px';
+    el.style.height=H2*sc+'px';
+    redrawCanvas();
+    updateRoute();
+  });
+
+  rh.addEventListener('pointerup', e=>{
+    if(e.pointerId!==pid) return;
+    pid=null;
+    renderOverlay();
+    if(S.sel===c.id) renderProps();
+  });
+
+  rh.addEventListener('pointercancel', ()=>{ pid=null; });
+}
+
+// Redraw canvas pixels WITHOUT touching the overlay DOM
+function redrawCanvas(){
+  const cv=document.getElementById('main-canvas');
+  const ctx=cv.getContext('2d');
+  const W=S.canvas.w, H=S.canvas.h;
+  ctx.clearRect(0,0,W,H);
+  const bg=S.canvas.bg.trim();
+  if(bg&&bg!=='transparent'){ ctx.fillStyle='#'+bg.replace('#',''); ctx.fillRect(0,0,W,H); }
+  const doDraw=()=>{
+    S.comps.forEach(c=>{ if(c.type==='image') drawImg(ctx,c); else drawTxt(ctx,c); });
+  };
+  if(S.canvas.bgimg){
+    const img=new Image(); img.crossOrigin='anonymous';
+    img.onload=()=>{ ctx.drawImage(img,0,0,W,H); doDraw(); };
+    img.onerror=doDraw; img.src=S.canvas.bgimg;
+  } else doDraw();
+}
+
+// ===================== COMPONENTS =====================
+function addText(){
+  S.idc++;
+  const c={id:S.idc,type:'text',name:'Texto '+S.idc,content:'Texto Exemplo',x:50,y:50,w:400,fontSize:48,fontFamily:'sans-serif',color:'ffffff',bold:false,useGradient:false,color1:'ffffff',color2:'c8f135',shadowOpacity:0,shadowBlur:0,shadowDist:4,customFontUrl:''};
+  S.comps.push(c); selectComp(c.id); renderCanvas(); renderCompList(); updateRoute();
+  closePanels(); openPanel('right');
+}
+function addImage(){
+  S.idc++;
+  const c={id:S.idc,type:'image',name:'Imagem '+S.idc,url:'',x:50,y:50,w:200,h:200,_img:null};
+  S.comps.push(c); selectComp(c.id); renderCanvas(); renderCompList(); updateRoute();
+  closePanels(); openPanel('right');
+}
+function deleteComp(id){
+  S.comps=S.comps.filter(c=>c.id!==id);
+  if(S.sel===id){ S.sel=null; showNoSel(); }
+  renderCanvas(); renderCompList(); updateRoute();
+}
+function selectComp(id){
+  S.sel=id; renderCompList(); renderProps();
+}
+function showNoSel(){
+  document.getElementById('props-panel').innerHTML=`<div class="no-selection"><span class="no-selection-icon">◈</span><span class="no-selection-text">Selecione um<br>componente<br>para editar</span></div>`;
+}
+
+function renderCompList(){
+  const el=document.getElementById('comp-list');
+  if(!S.comps.length){ el.innerHTML='<div style="font-family:Space Mono,monospace;font-size:10px;color:#444;text-align:center;padding:16px">Nenhum componente</div>'; return; }
+  el.innerHTML=S.comps.map(c=>`
+    <div class="comp-item${S.sel===c.id?' selected':''}" onclick="selectComp(${c.id});openPanel('right')">
+      <span class="comp-item-icon">${c.type==='text'?'T':'🖼'}</span>
+      <div class="comp-item-info">
+        <div class="comp-item-name">${esc(c.name)}</div>
+        <div class="comp-item-sub">${c.type==='text'?esc(c.content.slice(0,20)):(c.url?'URL definida':'sem URL')}</div>
+      </div>
+      <button class="comp-del" onclick="event.stopPropagation();deleteComp(${c.id})">✕</button>
+    </div>`).join('');
+}
+
+// ===================== PROPS =====================
+function renderProps(){
+  const panel=document.getElementById('props-panel');
+  const c=S.comps.find(x=>x.id===S.sel);
+  if(!c){ showNoSel(); return; }
+
+  if(c.type==='text'){
+    panel.innerHTML=`
+      <div class="props-title">// Texto</div>
+      <div class="prop-group"><label class="prop-label">Nome</label><input class="prop-input" type="text" value="${esc(c.name)}" onchange="up(${c.id},'name',this.value)"></div>
+      <div class="prop-group"><label class="prop-label">Conteúdo</label><textarea class="prop-input" onchange="up(${c.id},'content',this.value)">${esc(c.content)}</textarea></div>
+      <div class="prop-row">
+        <div class="prop-group"><label class="prop-label">X</label><input class="prop-input" type="number" value="${c.x}" onchange="up(${c.id},'x',+this.value)"></div>
+        <div class="prop-group"><label class="prop-label">Y</label><input class="prop-input" type="number" value="${c.y}" onchange="up(${c.id},'y',+this.value)"></div>
+      </div>
+      <div class="prop-group"><label class="prop-label">Tamanho da fonte (px)</label><input class="prop-input" type="number" value="${c.fontSize}" onchange="up(${c.id},'fontSize',+this.value)"></div>
+      <div class="prop-group"><label class="prop-label">Largura da área (px)</label><input class="prop-input" type="number" value="${c.w||400}" onchange="up(${c.id},'w',+this.value)"></div>
+      <div class="prop-group"><label class="prop-label">Família da fonte</label><input class="prop-input" type="text" value="${esc(c.fontFamily)}" placeholder="sans-serif, serif..." onchange="up(${c.id},'fontFamily',this.value)"></div>
+      <div class="prop-group"><label class="prop-label">URL da fonte (Google Fonts link)</label><input class="prop-input" type="text" value="${esc(c.customFontUrl)}" placeholder="https://fonts.googleapis.com/..." onchange="loadFont(${c.id},this.value)"></div>
+      <div class="prop-divider"></div>
+      <div class="gradient-toggle" onclick="toggleGrad(${c.id})">
+        <div class="toggle-box ${c.useGradient?'on':''}"><div class="toggle-dot"></div></div>
+        <span class="toggle-label">Gradiente</span>
+      </div>
+      ${c.useGradient?`
+        <div class="prop-row">
+          <div class="prop-group"><label class="prop-label">Cor 1</label><input class="prop-input" type="text" value="${c.color1}" onchange="up(${c.id},'color1',this.value)"><input type="color" style="width:100%;height:22px;border:none;background:none;cursor:pointer;margin-top:3px" value="#${c.color1}" oninput="up(${c.id},'color1',this.value.replace('#',''))"></div>
+          <div class="prop-group"><label class="prop-label">Cor 2</label><input class="prop-input" type="text" value="${c.color2}" onchange="up(${c.id},'color2',this.value)"><input type="color" style="width:100%;height:22px;border:none;background:none;cursor:pointer;margin-top:3px" value="#${c.color2}" oninput="up(${c.id},'color2',this.value.replace('#',''))"></div>
+        </div>`:`
+        <div class="prop-group"><label class="prop-label">Cor</label><input class="prop-input" type="text" value="${c.color}" onchange="up(${c.id},'color',this.value)"><input type="color" style="width:100%;height:22px;border:none;background:none;cursor:pointer;margin-top:3px" value="#${c.color}" oninput="up(${c.id},'color',this.value.replace('#',''))"></div>`}
+      <div class="prop-divider"></div>
+      <div class="prop-group"><label class="prop-label">Sombra — opacidade (0-1)</label><input class="prop-input" type="number" step="0.05" min="0" max="1" value="${c.shadowOpacity}" onchange="up(${c.id},'shadowOpacity',+this.value)"></div>
+      <div class="prop-row">
+        <div class="prop-group"><label class="prop-label">Distância</label><input class="prop-input" type="number" value="${c.shadowDist}" onchange="up(${c.id},'shadowDist',+this.value)"></div>
+        <div class="prop-group"><label class="prop-label">Blur</label><input class="prop-input" type="number" value="${c.shadowBlur}" onchange="up(${c.id},'shadowBlur',+this.value)"></div>
+      </div>`;
+  } else {
+    panel.innerHTML=`
+      <div class="props-title">// Imagem</div>
+      <div class="prop-group"><label class="prop-label">Nome</label><input class="prop-input" type="text" value="${esc(c.name)}" onchange="up(${c.id},'name',this.value)"></div>
+      <div class="prop-group"><label class="prop-label">URL da imagem</label><input class="prop-input" type="text" value="${esc(c.url)}" placeholder="https://..." onchange="up(${c.id},'url',this.value);c._img=null"></div>
+      <div class="prop-row">
+        <div class="prop-group"><label class="prop-label">X</label><input class="prop-input" type="number" value="${c.x}" onchange="up(${c.id},'x',+this.value)"></div>
+        <div class="prop-group"><label class="prop-label">Y</label><input class="prop-input" type="number" value="${c.y}" onchange="up(${c.id},'y',+this.value)"></div>
+      </div>
+      <div class="prop-row">
+        <div class="prop-group"><label class="prop-label">Largura</label><input class="prop-input" type="number" value="${c.w}" onchange="up(${c.id},'w',+this.value)"></div>
+        <div class="prop-group"><label class="prop-label">Altura</label><input class="prop-input" type="number" value="${c.h}" onchange="up(${c.id},'h',+this.value)"></div>
+      </div>
+      <p style="font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);margin-top:8px">Dica: arraste o círculo verde para redimensionar</p>`;
+  }
+}
+
+function up(id,k,v){
+  const c=S.comps.find(x=>x.id===id); if(!c) return;
+  if(k==='url') c._img=null;
+  c[k]=v; renderCanvas(); renderCompList(); renderOverlay(); updateRoute();
+}
+function toggleGrad(id){ const c=S.comps.find(x=>x.id===id); if(!c) return; c.useGradient=!c.useGradient; renderProps(); renderCanvas(); updateRoute(); }
+function loadFont(id,url){
+  const c=S.comps.find(x=>x.id===id); if(!c) return; c.customFontUrl=url;
+  if(url){ const l=document.createElement('link'); l.rel='stylesheet'; l.href=url; l.onload=()=>renderCanvas(); document.head.appendChild(l); }
+  updateRoute();
+}
+
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ===================== ROUTE =====================
+function buildRoute(){
+  const p=[];
+  p.push(`ImgSize=${S.canvas.w}x${S.canvas.h}`);
+  if(S.canvas.bg) p.push(`Background=${S.canvas.bg.replace('#','')}`);
+  if(S.canvas.bgimg) p.push(`BgImg=${encodeURIComponent(S.canvas.bgimg)}`);
+  let ii=1,ti=1;
+  S.comps.forEach(c=>{
+    if(c.type==='image'){
+      const i=ii++;
+      p.push(`Img${i}Url=${encodeURIComponent(c.url)}`);
+      p.push(`Img${i}Pos=${c.x},${c.y}`);
+      p.push(`Img${i}Size=${c.w}x${c.h}`);
+    } else {
+      const i=ti++;
+      p.push(`Txt${i}Pos=${c.x},${c.y}`);
+      p.push(`Txt${i}Size=${c.fontSize}`);
+      p.push(`Txt${i}Content=${encodeURIComponent(c.content)}`);
+      p.push(`Txt${i}Font=${encodeURIComponent(c.fontFamily)}`);
+      p.push(`Txt${i}W=${c.w||400}`);
+      if(c.useGradient) p.push(`Txt${i}Color=gradient:${c.color1},${c.color2}`);
+      else p.push(`Txt${i}Color=${c.color}`);
+      if(c.shadowOpacity>0) p.push(`Txt${i}Shadow=${c.shadowOpacity},${c.shadowDist},${c.shadowBlur}`);
+      if(c.customFontUrl) p.push(`Txt${i}FontUrl=${encodeURIComponent(c.customFontUrl)}`);
+    }
+  });
+  return '/generate?'+p.join('&');
+}
+
+function updateRoute(){
+  const r=buildRoute();
+  const el=document.getElementById('route-display');
+  const short=r.length>60?r.slice(0,60)+'…':r;
+  el.innerHTML=`<span>${short}</span>`;
+}
+
+function copyRoute(){
+  const r=buildRoute();
+  const url=location.href.split('#')[0]+'#'+r;
+  navigator.clipboard.writeText(url).then(()=>showToast('URL copiada!')).catch(()=>{
+    // fallback
+    const ta=document.createElement('textarea'); ta.value=url; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); showToast('URL copiada!');
+  });
+}
+
+// ===================== GENERATE (open in same page via hash) =====================
+function openGenerate(){
+  const r=buildRoute();
+  location.hash=r;
+}
+
+function checkHash(){
+  const h=window.location.hash;
+  if(h.startsWith('#/generate')){
+    const qs=h.replace('#/generate?','').replace('#/generate','');
+    if(qs){
+      const params=new URLSearchParams(qs);
+      showPage('page-generate');
+      doGenerate(params);
+      return true;
+    }
+  }
+  return false;
+}
+
+function backToEditor(){
+  history.pushState('','',location.href.split('#')[0]);
+  showPage('page-editor');
+  initEditor();
+}
+
+// ===================== GENERATE RENDER =====================
+function doGenerate(params){
+  const loading=document.getElementById('gen-loading');
+  const cv=document.getElementById('generate-canvas');
+  const actions=document.getElementById('gen-actions');
+  loading.style.display='block'; cv.style.display='none'; actions.style.display='none';
+
+  const W=parseInt((params.get('ImgSize')||'800x800').split('x')[0]);
+  const H=parseInt((params.get('ImgSize')||'800x800').split('x')[1]);
+  cv.width=W; cv.height=H;
+  const ctx=cv.getContext('2d');
+
+  // BG
+  const bg=params.get('Background')||'';
+  if(bg&&bg!=='transparent'){ ctx.fillStyle='#'+bg.replace('#',''); ctx.fillRect(0,0,W,H); }
+
+  // Collect
+  const comps=[];
+  let i=1;
+  while(params.has(`Img${i}Url`)){
+    const url=decodeURIComponent(params.get(`Img${i}Url`)||'');
+    const pos=(params.get(`Img${i}Pos`)||'0,0').split(',');
+    const sz=(params.get(`Img${i}Size`)||'200x200').split('x');
+    comps.push({type:'image',url,x:+pos[0]||0,y:+pos[1]||0,w:+sz[0]||200,h:+sz[1]||200,order:i});
+    i++;
+  }
+  i=1;
+  while(params.has(`Txt${i}Content`)){
+    const content=decodeURIComponent(params.get(`Txt${i}Content`)||'');
+    const pos=(params.get(`Txt${i}Pos`)||'0,0').split(',');
+    const fontSize=parseInt(params.get(`Txt${i}Size`)||'48');
+    const fontFamily=decodeURIComponent(params.get(`Txt${i}Font`)||'sans-serif');
+    const colorStr=params.get(`Txt${i}Color`)||'ffffff';
+    const shadowStr=params.get(`Txt${i}Shadow`)||'';
+    const fontUrl=decodeURIComponent(params.get(`Txt${i}FontUrl`)||'');
+    const gw=parseInt(params.get(`Txt${i}W`)||'400');
+    let useGradient=false,color1='ffffff',color2='c8f135',color='ffffff';
+    if(colorStr.startsWith('gradient:')){
+      useGradient=true; const cols=colorStr.replace('gradient:','').split(',');
+      color1=cols[0]||'ffffff'; color2=cols[1]||'c8f135';
+    } else color=colorStr;
+    let shadowOpacity=0,shadowDist=4,shadowBlur=0;
+    if(shadowStr){ const sp=shadowStr.split(','); shadowOpacity=+sp[0]||0; shadowDist=+sp[1]||4; shadowBlur=+sp[2]||0; }
+    comps.push({type:'text',content,fontFamily,fontSize,color,useGradient,color1,color2,shadowOpacity,shadowDist,shadowBlur,fontUrl,x:+pos[0]||0,y:+pos[1]||0,gw,order:i});
+    i++;
+  }
+
+  // Load fonts
+  const fontLoads=comps.filter(c=>c.type==='text'&&c.fontUrl).map(c=>new Promise(res=>{
+    const l=document.createElement('link'); l.rel='stylesheet'; l.href=c.fontUrl;
+    l.onload=()=>setTimeout(res,200); l.onerror=res; document.head.appendChild(l);
+  }));
+
+  const render=()=>{
+    // BG image
+    const bgimg=params.get('BgImg')||'';
+    const drawAll=()=>{
+      // Load images
+      const imgComps=comps.filter(c=>c.type==='image');
+      const iloads=imgComps.map(c=>new Promise(res=>{
+        if(!c.url){res();return;}
+        const img=new Image(); img.crossOrigin='anonymous';
+        img.onload=()=>{c._img=img;res();}; img.onerror=res; img.src=c.url;
+      }));
+      Promise.all(iloads).then(()=>{
+        comps.forEach(c=>{
+          if(c.type==='image'&&c._img){ ctx.drawImage(c._img,c.x,c.y,c.w,c.h); }
+          else if(c.type==='text'){
+            ctx.save();
+            if(c.shadowOpacity>0){ ctx.shadowColor=`rgba(0,0,0,${c.shadowOpacity})`; ctx.shadowBlur=c.shadowBlur; ctx.shadowOffsetX=c.shadowDist; ctx.shadowOffsetY=c.shadowDist; }
+            ctx.font=`${c.fontSize}px ${c.fontFamily}`;
+            ctx.textBaseline='top';
+            if(c.useGradient){
+              const g=ctx.createLinearGradient(c.x,c.y,c.x+c.gw,c.y);
+              g.addColorStop(0,'#'+(c.color1).replace('#',''));
+              g.addColorStop(1,'#'+(c.color2).replace('#',''));
+              ctx.fillStyle=g;
+            } else { ctx.fillStyle='#'+c.color.replace('#',''); }
+            c.content.split('\n').forEach((l,li)=>ctx.fillText(l,c.x,c.y+li*c.fontSize*1.3));
+            ctx.restore();
+          }
+        });
+        // Done — show canvas and download
+        loading.style.display='none';
+        cv.style.display='block';
+        actions.style.display='flex';
+        // Set download link
+        const url=cv.toDataURL('image/png');
+        const dl=document.getElementById('dl-btn');
+        dl.href=url;
+      });
+    };
+
+    if(bgimg){
+      const bgi=new Image(); bgi.crossOrigin='anonymous';
+      bgi.onload=()=>{ ctx.drawImage(bgi,0,0,W,H); drawAll(); };
+      bgi.onerror=drawAll; bgi.src=decodeURIComponent(bgimg);
+    } else drawAll();
+  };
+
+  Promise.all(fontLoads).then(render);
+}
+
+// ===================== TOAST =====================
+function showToast(msg,err=false){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.style.background=err?'var(--accent2)':'var(--accent)'; t.style.color=err?'#fff':'#000';
+  t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+// ===================== INIT =====================
+window.addEventListener('load',()=>{
+  if(checkHash()) return;
+  if(sessionStorage.getItem('logged')==='1'){ showPage('page-editor'); initEditor(); }
+  else showPage('page-login');
+  window.addEventListener('hashchange',()=>{ if(!checkHash()){ if(sessionStorage.getItem('logged')==='1'){ showPage('page-editor'); initEditor(); } } });
+});
+
+// Deselect on canvas click
+document.getElementById('canvas-overlay')?.addEventListener('click',e=>{
+  if(e.target.id==='canvas-overlay'){ S.sel=null; renderCompList(); showNoSel(); }
+});
+</script>
+</body>
+</html>
