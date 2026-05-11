@@ -1,15 +1,9 @@
 {
-  "name": "imageapi-studio",
+  "name": "imageapi-generate",
   "version": "1.0.0",
-  "description": "API que entrega imagens PNG via URL — compatível com Vercel",
-  "scripts": {
-    "start": "node server-local.js"
-  },
+  "private": true,
   "dependencies": {
     "@sparticuz/chromium": "^123.0.1",
     "puppeteer-core": "^22.6.5"
-  },
-  "engines": {
-    "node": ">=18"
   }
 }
